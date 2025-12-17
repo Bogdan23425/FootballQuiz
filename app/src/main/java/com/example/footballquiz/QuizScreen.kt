@@ -27,12 +27,7 @@ fun QuizScreen(
     val context = LocalContext.current
 
     val pool = remember(theme) {
-        val filtered = if (theme.isNullOrBlank()) {
-            QuizData.all
-        } else {
-            QuizData.all.filter { it.theme == theme }
-        }
-
+        val filtered = if (theme.isNullOrBlank()) QuizData.all else QuizData.all.filter { it.theme == theme }
         val source = if (filtered.size >= QUESTIONS_PER_QUIZ) filtered else QuizData.all
         source.shuffled().take(QUESTIONS_PER_QUIZ)
     }
@@ -50,46 +45,59 @@ fun QuizScreen(
     var isGameOver by remember { mutableStateOf(false) }
     var gameOverReason by remember { mutableStateOf(GameOverReason.Timeout) }
 
-    // конец квиза (вопросы закончились)
     val isFinished = index >= pool.size
 
-    // таймер на текущий вопрос
+    var warned3 by remember { mutableStateOf(false) }
+    var warned2 by remember { mutableStateOf(false) }
+    var warned1 by remember { mutableStateOf(false) }
+
+    var didRecord by remember { mutableStateOf(false) }
+
     LaunchedEffect(timerKey, isGameOver, isFinished) {
         if (isGameOver || isFinished) return@LaunchedEffect
 
         secondsLeft = SECONDS_PER_QUESTION
+        warned3 = false
+        warned2 = false
+        warned1 = false
+
         while (secondsLeft > 0 && !locked && !isGameOver) {
-            delay(1000)
+            delay(1_000)
             secondsLeft -= 1
+
+            if (secondsLeft == 3 && !warned3) { warned3 = true; AudioManager.playTimeWarning(context) }
+            if (secondsLeft == 2 && !warned2) { warned2 = true; AudioManager.playTimeWarning(context) }
+            if (secondsLeft == 1 && !warned1) { warned1 = true; AudioManager.playTimeWarning(context) }
         }
 
         if (secondsLeft <= 0 && !locked && !isGameOver) {
             isGameOver = true
             gameOverReason = GameOverReason.Timeout
+            AudioManager.playGameOver(context)
         }
+    }
+
+    LaunchedEffect(isGameOver, isFinished) {
+        if (!didRecord && (isGameOver || isFinished)) {
+            StatsStore.recordAttempt(context, theme, score)
+            didRecord = true
+        }
+    }
+
+    LaunchedEffect(isFinished) {
+        if (isFinished) AudioManager.playWin(context)
     }
 
     BackHandler(enabled = true) { onFinish() }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Квиз", fontWeight = FontWeight.SemiBold) }
-            )
-        }
+        topBar = { CenterAlignedTopAppBar(title = { Text("Квиз", fontWeight = FontWeight.SemiBold) }) }
     ) { padding ->
 
-        // --- Game Over ---
         if (isGameOver) {
             QuizResultScreen(
-                title = when (gameOverReason) {
-                    GameOverReason.Lives -> "Game Over"
-                    GameOverReason.Timeout -> "Время вышло"
-                },
-                subtitle = when (gameOverReason) {
-                    GameOverReason.Lives -> "Ты потратил все жизни."
-                    GameOverReason.Timeout -> "Ты не успел ответить вовремя."
-                },
+                title = if (gameOverReason == GameOverReason.Timeout) "Время вышло" else "Game Over",
+                subtitle = if (gameOverReason == GameOverReason.Timeout) "Ты не успел ответить вовремя." else "Ты потратил все жизни.",
                 score = score,
                 livesLeft = lives,
                 onRestart = onFinish
@@ -97,7 +105,6 @@ fun QuizScreen(
             return@Scaffold
         }
 
-        // --- Finish ---
         if (isFinished) {
             QuizFinalByLivesScreen(
                 score = score,
@@ -107,7 +114,6 @@ fun QuizScreen(
             return@Scaffold
         }
 
-        // Здесь current уже НЕ nullable, потому что isFinished=false
         val current = pool[index]
 
         Column(
@@ -139,7 +145,6 @@ fun QuizScreen(
                 }
             }
 
-            // ✅ новая сигнатура: progress как lambda (убирает deprecated warning)
             LinearProgressIndicator(
                 progress = { secondsLeft / SECONDS_PER_QUESTION.toFloat() },
                 modifier = Modifier.fillMaxWidth()
@@ -199,10 +204,12 @@ fun QuizScreen(
                         } else {
                             lives -= 1
                             AudioManager.playWrong(context)
+                            AudioManager.playLifeLost(context)
 
                             if (lives <= 0) {
                                 isGameOver = true
                                 gameOverReason = GameOverReason.Lives
+                                AudioManager.playGameOver(context)
                                 return@ElevatedButton
                             }
                         }
@@ -264,11 +271,7 @@ private fun QuizResultScreen(
     onRestart: () -> Unit
 ) {
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Результат", fontWeight = FontWeight.SemiBold) }
-            )
-        }
+        topBar = { CenterAlignedTopAppBar(title = { Text("Результат", fontWeight = FontWeight.SemiBold) }) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -299,10 +302,7 @@ private fun QuizResultScreen(
 
             Spacer(Modifier.weight(1f))
 
-            Button(
-                onClick = onRestart,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Button(onClick = onRestart, modifier = Modifier.fillMaxWidth()) {
                 Text("Сыграть ещё раз")
             }
         }

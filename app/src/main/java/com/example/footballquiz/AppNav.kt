@@ -1,15 +1,12 @@
 package com.example.footballquiz
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.*
 import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 
 private object Routes {
@@ -24,11 +21,23 @@ private object Routes {
 @Composable
 fun AppNav() {
     val nav = rememberNavController()
+    val entry by nav.currentBackStackEntryAsState()
+    val route = entry?.destination?.route.orEmpty()
 
-    NavHost(
-        navController = nav,
-        startDestination = Routes.HOME
-    ) {
+    LaunchedEffect(route) {
+        val mode = if (route.startsWith(Routes.QUIZ)) MusicMode.QUIZ else MusicMode.MENU
+        AudioManager.setMusicMode(nav.context, mode)
+    }
+
+    fun toHome() {
+        nav.navigate(Routes.HOME) {
+            popUpTo(Routes.HOME) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
+    NavHost(navController = nav, startDestination = Routes.HOME) {
+
         composable(Routes.HOME) {
             HomeScreen(
                 onStartQuiz = { nav.navigate(Routes.QUIZ_SETUP) },
@@ -41,57 +50,60 @@ fun AppNav() {
         composable(Routes.QUIZ_SETUP) {
             QuizSetupScreen(
                 onStart = { theme ->
-                    val route = if (theme.isNullOrBlank()) {
-                        "${Routes.QUIZ}?theme="
-                    } else {
-                        "${Routes.QUIZ}?theme=$theme"
-                    }
-                    nav.navigate(route)
+                    val t = theme.orEmpty()
+                    nav.navigate("${Routes.QUIZ}?theme=$t")
                 }
             )
         }
 
         composable(
             route = "${Routes.QUIZ}?theme={theme}",
-            arguments = listOf(
-                navArgument("theme") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
+            arguments = listOf(navArgument("theme") { type = NavType.StringType; defaultValue = "" })
         ) { backStackEntry ->
-            val theme = backStackEntry.arguments?.getString("theme")
-
+            val theme = backStackEntry.arguments?.getString("theme")?.takeIf { it.isNotBlank() }
             QuizScreen(
                 theme = theme,
-                onFinish = {
-                    // возвращаемся на экран выбора квиза
-                    nav.popBackStack(Routes.QUIZ_SETUP, inclusive = false)
-                }
+                onFinish = { nav.popBackStack(Routes.QUIZ_SETUP, inclusive = false) }
             )
         }
 
-        composable(Routes.LIBRARY) { PlaceholderScreen(title = "Библиотека") }
-        composable(Routes.STATS) { PlaceholderScreen(title = "Статистика") }
-        composable(Routes.SETTINGS) { SettingsScreen() }
+        composable(Routes.LIBRARY) {
+            LibraryScreen(onBack = { nav.popBackStack() }, onHome = { toHome() })
+        }
+
+        composable(Routes.STATS) {
+            StatsScreen(onBack = { nav.popBackStack() }, onHome = { toHome() })
+        }
+
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onBack = { nav.popBackStack() }, onHome = { toHome() })
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaceholderScreen(title: String) {
-    Scaffold(
-        topBar = { CenterAlignedTopAppBar(title = { Text(title) }) }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Скоро будет 👀", style = MaterialTheme.typography.titleMedium)
+fun AppTopBar(
+    title: String,
+    canBack: Boolean,
+    onBack: (() -> Unit)?,
+    onHome: (() -> Unit)?
+) {
+    CenterAlignedTopAppBar(
+        title = { Text(title) },
+        navigationIcon = {
+            if (canBack && onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                }
+            }
+        },
+        actions = {
+            if (onHome != null) {
+                IconButton(onClick = onHome) {
+                    Icon(Icons.Outlined.Home, contentDescription = "Home")
+                }
+            }
         }
-    }
+    )
 }

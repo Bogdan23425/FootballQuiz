@@ -11,6 +11,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         AudioManager.init(this)
+        AudioManager.refreshVolumes(this)
 
         enableEdgeToEdge()
         setContent {
@@ -22,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        AudioManager.startMusic(this)
+        AudioManager.refreshVolumes(this)
     }
 
     override fun onStop() {

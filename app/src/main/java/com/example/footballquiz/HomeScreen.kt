@@ -1,5 +1,13 @@
 package com.example.footballquiz
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -8,14 +16,18 @@ import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsSoccer
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -24,123 +36,60 @@ fun HomeScreen(
     onStats: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(18.dp)
-    val context = LocalContext.current
+    // Более живой фон
+    val background = Brush.verticalGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+            MaterialTheme.colorScheme.background,
+            MaterialTheme.colorScheme.surface
+        )
+    )
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Football Quiz", fontWeight = FontWeight.SemiBold) }
+                title = { Text("Football Quiz") }
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
+                .fillMaxSize()
+                .background(background)
                 .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize(),
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Hero / Intro card
-            ElevatedCard(
-                shape = shape,
-                modifier = Modifier.fillMaxWidth()
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn() +
+                        slideInVertically(
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessLow,
+                                dampingRatio = Spring.DampingRatioMediumBouncy
+                            ),
+                            initialOffsetY = { it / 2 }
+                        )
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Прокачай знания о футболе",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Квиз с таймером, 3 жизни, очки и разные темы. Библиотека — чтобы быстро учить термины.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                HeroCard(onStartQuiz)
             }
 
-            // Quick actions grid (2x2)
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ActionCard(
-                        title = "Квиз",
-                        subtitle = "25 вопросов • таймер",
-                        icon = Icons.Outlined.SportsSoccer,
-                        onClick = onStartQuiz,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ActionCard(
-                        title = "Библиотека",
-                        subtitle = "термины и темы",
-                        icon = Icons.Outlined.Book,
-                        onClick = onLibrary,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ActionCard(
-                        title = "Статистика",
-                        subtitle = "прогресс и рекорды",
-                        icon = Icons.Outlined.AutoGraph,
-                        onClick = onStats,
-                        modifier = Modifier.weight(1f)
-                    )
-                    ActionCard(
-                        title = "Настройки",
-                        subtitle = "звук и музыка",
-                        icon = Icons.Outlined.Settings,
-                        onClick = onSettings,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            // Small stats preview (пока заглушка — позже подключим реальную)
-            ElevatedCard(shape = shape, modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Сегодня",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    StatRow(label = "Лучший результат", value = "—")
-                    StatRow(label = "Попыток", value = "—")
-                    StatRow(label = "Серия побед", value = "—")
-                }
-            }
-            ElevatedCard(shape = shape, modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("Тест звуков", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(
-                            onClick = { AudioManager.playCorrect(context) },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Correct") }
-
-                        Button(
-                            onClick = { AudioManager.playWrong(context) },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Wrong") }
-                    }
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn() +
+                        slideInVertically(
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessLow,
+                                dampingRatio = Spring.DampingRatioMediumBouncy
+                            ),
+                            initialOffsetY = { it / 3 }
+                        )
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionTile("Квиз", "Начать игру", Icons.Outlined.SportsSoccer, onStartQuiz)
+                    ActionTile("Библиотека", "Термины и обучение", Icons.Outlined.Book, onLibrary)
+                    ActionTile("Статистика", "Прогресс и рекорды", Icons.Outlined.AutoGraph, onStats)
+                    ActionTile("Настройки", "Звук и интерфейс", Icons.Outlined.Settings, onSettings)
                 }
             }
         }
@@ -148,57 +97,112 @@ fun HomeScreen(
 }
 
 @Composable
-private fun ActionCard(
+private fun HeroCard(onStartQuiz: () -> Unit) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Футбольный квиз",
+                style = MaterialTheme.typography.headlineSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = "Проверь знания, играй на время и улучшай результат с каждой попыткой.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3
+            )
+
+            Button(
+                onClick = onStartQuiz,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Text("Начать игру")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionTile(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(18.dp)
+    val scope = rememberCoroutineScope()
+    val scale = remember { Animatable(1f) }
 
     ElevatedCard(
-        shape = shape,
-        modifier = modifier.height(112.dp),
-        onClick = onClick
+        shape = RoundedCornerShape(22.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale.value)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        scope.launch {
+                            scale.animateTo(
+                                0.97f,
+                                animationSpec = spring(
+                                    stiffness = Spring.StiffnessMediumLow,
+                                    dampingRatio = Spring.DampingRatioMediumBouncy
+                                )
+                            )
+                        }
+
+                        val released = tryAwaitRelease()
+
+                        scope.launch {
+                            scale.animateTo(
+                                1f,
+                                animationSpec = spring(
+                                    stiffness = Spring.StiffnessMediumLow,
+                                    dampingRatio = Spring.DampingRatioMediumBouncy
+                                )
+                            )
+                        }
+
+                        if (released) onClick()
+                    }
+                )
+            }
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Icon(
-                    imageVector = icon,
+                    icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(10.dp)
+                    modifier = Modifier.padding(12.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        }
-    }
-}
 
-@Composable
-private fun StatRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text("→", style = MaterialTheme.typography.titleMedium)
+        }
     }
 }
