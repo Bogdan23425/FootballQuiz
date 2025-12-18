@@ -33,94 +33,95 @@ fun SettingsScreen(
     Scaffold(
         topBar = { AppTopBar(title = "Настройки", canBack = true, onBack = onBack, onHome = onHome) }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ElevatedCard(
+        AppBackground(modifier = Modifier.padding(padding)) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .animateContentSize(),
-                shape = RoundedCornerShape(22.dp)
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ElevatedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    shape = RoundedCornerShape(22.dp)
                 ) {
-                    Text("Аудио", style = MaterialTheme.typography.titleLarge)
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text("Аудио", style = MaterialTheme.typography.titleLarge)
 
-                    ToggleRow(
-                        title = "Музыка",
-                        subtitle = "Фон в меню и в квизе",
-                        checked = musicEnabled,
-                        onCheckedChange = { next ->
-                            musicEnabled = next
-                            AppPrefs.setMusicEnabled(context, next)
-                            if (next) {
-                                AudioManager.setMusicMode(context, MusicMode.MENU)
-                                AudioManager.refreshVolumes(context)
-                            } else {
-                                AudioManager.stopMusic()
+                        ToggleRow(
+                            title = "Музыка",
+                            subtitle = "Фон в меню и в квизе",
+                            checked = musicEnabled,
+                            onCheckedChange = { next ->
+                                musicEnabled = next
+                                AppPrefs.setMusicEnabled(context, next)
+                                if (next) {
+                                    AudioManager.setMusicMode(context, MusicMode.MENU)
+                                    AudioManager.refreshVolumes(context)
+                                } else {
+                                    AudioManager.stopMusic()
+                                }
                             }
-                        }
-                    )
+                        )
 
-                    VolumeSlider(
-                        title = "Громкость музыки",
-                        value = musicVol,
-                        enabled = musicEnabled,
-                        onValueChange = {
-                            musicVol = it
-                            applyVolumes()
-                        }
-                    )
+                        VolumeSlider(
+                            title = "Громкость музыки",
+                            value = musicVol,
+                            enabled = musicEnabled,
+                            onValueChange = {
+                                musicVol = it
+                                applyVolumes()
+                            }
+                        )
 
-                    HorizontalDivider()
+                        HorizontalDivider()
 
-                    ToggleRow(
-                        title = "Эффекты",
-                        subtitle = "Ответы, таймер, победа/проигрыш",
-                        checked = sfxEnabled,
-                        onCheckedChange = { next ->
-                            sfxEnabled = next
-                            AppPrefs.setSfxEnabled(context, next)
-                            AudioManager.refreshVolumes(context)
-                        }
-                    )
+                        ToggleRow(
+                            title = "Эффекты",
+                            subtitle = "Ответы, таймер, победа/проигрыш",
+                            checked = sfxEnabled,
+                            onCheckedChange = { next ->
+                                sfxEnabled = next
+                                AppPrefs.setSfxEnabled(context, next)
+                                AudioManager.refreshVolumes(context)
+                            }
+                        )
 
-                    VolumeSlider(
-                        title = "Громкость эффектов",
-                        value = sfxVol,
-                        enabled = sfxEnabled,
-                        onValueChange = {
-                            sfxVol = it
-                            applyVolumes()
-                        }
-                    )
+                        VolumeSlider(
+                            title = "Громкость эффектов",
+                            value = sfxVol,
+                            enabled = sfxEnabled,
+                            onValueChange = {
+                                sfxVol = it
+                                applyVolumes()
+                            }
+                        )
+                    }
                 }
-            }
 
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp)
                 ) {
-                    Text(
-                        "Рекомендация",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        "Музыка 35–60%, эффекты 70–100% — так комфортно на большинстве устройств.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "Рекомендация",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "Музыка 35–60%, эффекты 70–100% — так комфортно на большинстве устройств.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

@@ -6,13 +6,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoGraph
 import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsSoccer
 import androidx.compose.material3.*
@@ -20,12 +21,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,14 +40,22 @@ fun HomeScreen(
     onStats: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    // Более живой фон
-    val background = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-            MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.surface
-        )
-    )
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var statsKey by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                statsKey += 1
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val attempts = remember(statsKey) { StatsStore.attempts(context) }
+    val bestScore = remember(statsKey) { StatsStore.bestScore(context) }
 
     Scaffold(
         topBar = {
@@ -52,44 +64,48 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(background)
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn() +
-                        slideInVertically(
-                            animationSpec = spring(
-                                stiffness = Spring.StiffnessLow,
-                                dampingRatio = Spring.DampingRatioMediumBouncy
-                            ),
-                            initialOffsetY = { it / 2 }
-                        )
+        AppBackground(modifier = Modifier.padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                HeroCard(onStartQuiz)
-            }
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn() +
+                            slideInVertically(
+                                animationSpec = spring(
+                                    stiffness = Spring.StiffnessLow,
+                                    dampingRatio = Spring.DampingRatioMediumBouncy
+                                ),
+                                initialOffsetY = { it / 2 }
+                            )
+                ) {
+                    HeroCard(onStartQuiz)
+                }
 
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn() +
-                        slideInVertically(
-                            animationSpec = spring(
-                                stiffness = Spring.StiffnessLow,
-                                dampingRatio = Spring.DampingRatioMediumBouncy
-                            ),
-                            initialOffsetY = { it / 3 }
-                        )
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ActionTile("Квиз", "Начать игру", Icons.Outlined.SportsSoccer, onStartQuiz)
-                    ActionTile("Библиотека", "Термины и обучение", Icons.Outlined.Book, onLibrary)
-                    ActionTile("Статистика", "Прогресс и рекорды", Icons.Outlined.AutoGraph, onStats)
-                    ActionTile("Настройки", "Звук и интерфейс", Icons.Outlined.Settings, onSettings)
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn() +
+                            slideInVertically(
+                                animationSpec = spring(
+                                    stiffness = Spring.StiffnessLow,
+                                    dampingRatio = Spring.DampingRatioMediumBouncy
+                                ),
+                                initialOffsetY = { it / 3 }
+                            )
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ActionTile("Квиз", "Начать игру", Icons.Outlined.SportsSoccer, onStartQuiz)
+                        ActionTile("Библиотека", "Термины и обучение", Icons.Outlined.Book, onLibrary)
+                        ActionTile("Статистика", "Прогресс и рекорды", Icons.Outlined.AutoGraph, onStats)
+                        ActionTile("Настройки", "Звук и интерфейс", Icons.Outlined.Settings, onSettings)
+                    }
+                }
+
+                AnimatedVisibility(visible = true, enter = fadeIn()) {
+                    QuickStats(attempts = attempts, bestScore = bestScore)
                 }
             }
         }
@@ -126,6 +142,62 @@ private fun HeroCard(onStartQuiz: () -> Unit) {
                 shape = RoundedCornerShape(18.dp)
             ) {
                 Text("Начать игру")
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickStats(attempts: Int, bestScore: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatTile(
+            title = "Попыток",
+            value = attempts.toString(),
+            icon = Icons.Outlined.Refresh,
+            modifier = Modifier.weight(1f)
+        )
+        StatTile(
+            title = "Лучший счёт",
+            value = bestScore.toString(),
+            icon = Icons.Outlined.EmojiEvents,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun StatTile(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(10.dp),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            Column {
+                Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             }
         }
     }

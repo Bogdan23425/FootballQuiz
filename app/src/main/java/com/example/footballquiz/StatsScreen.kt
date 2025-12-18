@@ -16,6 +16,7 @@ fun StatsScreen(
 ) {
     val context = LocalContext.current
     var refreshKey by remember { mutableIntStateOf(0) }
+    val maxScore = 250f
 
     val totalAttempts = remember(refreshKey) { StatsStore.attempts(context) }
     val bestTotal = remember(refreshKey) { StatsStore.bestScore(context) }
@@ -24,53 +25,59 @@ fun StatsScreen(
     Scaffold(
         topBar = { AppTopBar(title = "Статистика", canBack = true, onBack = onBack, onHome = onHome) }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ElevatedCard(
-                shape = RoundedCornerShape(22.dp),
-                modifier = Modifier.fillMaxWidth()
+        AppBackground(modifier = Modifier.padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ElevatedCard(
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Общее", style = MaterialTheme.typography.titleLarge)
-                    StatLine("Попыток", "$totalAttempts")
-                    StatLine("Лучший результат", "$bestTotal")
-                }
-            }
-
-            ElevatedCard(
-                shape = RoundedCornerShape(22.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("По темам", style = MaterialTheme.typography.titleLarge)
-                    themes.forEach { t ->
-                        val best = StatsStore.bestByTheme(context, t)
-                        StatLine(t, if (best == 0) "—" else best.toString())
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Общее", style = MaterialTheme.typography.titleLarge)
+                        StatLine("Попыток", "$totalAttempts")
+                        StatLine("Лучший результат", "$bestTotal")
+                        LinearProgressIndicator(
+                            progress = { (bestTotal / maxScore).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
-            }
 
-            Spacer(Modifier.weight(1f))
+                ElevatedCard(
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("По темам", style = MaterialTheme.typography.titleLarge)
+                        themes.forEach { t ->
+                            val best = StatsStore.bestByTheme(context, t)
+                            val value = if (best == 0) "—" else best.toString()
+                            StatLine(t, value)
+                        }
+                    }
+                }
 
-            OutlinedButton(
-                onClick = {
-                    StatsStore.reset(context)
-                    refreshKey += 1
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Сбросить статистику")
+                Spacer(Modifier.weight(1f))
+
+                OutlinedButton(
+                    onClick = {
+                        StatsStore.reset(context)
+                        refreshKey += 1
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Сбросить статистику")
+                }
             }
         }
     }

@@ -1,7 +1,18 @@
 package com.example.footballquiz
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -15,10 +26,11 @@ private const val QUESTIONS_PER_QUIZ = 25
 private const val SECONDS_PER_QUESTION = 15
 private const val START_LIVES = 3
 private const val SCORE_CORRECT = 10
+private const val MAX_SCORE = QUESTIONS_PER_QUIZ * SCORE_CORRECT
 
 private enum class GameOverReason { Lives, Timeout }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun QuizScreen(
     theme: String?,
@@ -114,127 +126,152 @@ fun QuizScreen(
             return@Scaffold
         }
 
-        val current = pool[index]
-
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Вопрос", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${index + 1} / ${pool.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    }
-                    Column {
-                        Text("Жизни", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("❤️".repeat(max(0, lives)), style = MaterialTheme.typography.titleMedium)
-                    }
-                    Column {
-                        Text("Очки", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$score", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        AppBackground(modifier = Modifier.padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Вопрос", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${index + 1} / ${pool.size}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        }
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text("Жизни", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            LivesRow(lives = lives, totalLives = START_LIVES)
+                        }
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                            Text("Очки", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$score", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
-            }
 
-            LinearProgressIndicator(
-                progress = { secondsLeft / SECONDS_PER_QUESTION.toFloat() },
-                modifier = Modifier.fillMaxWidth()
-            )
+                val progressTarget = secondsLeft / SECONDS_PER_QUESTION.toFloat()
+                val progress by animateFloatAsState(targetValue = progressTarget, label = "timerProgress")
+                val timerColor by animateColorAsState(
+                    targetValue = if (secondsLeft <= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    label = "timerColor"
+                )
 
-            Text(
-                text = "Осталось: ${secondsLeft}s",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = timerColor
+                )
 
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = current.theme,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = current.question,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+                Text(
+                    text = "Осталось: ${secondsLeft}s",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = timerColor
+                )
 
-            current.options.forEachIndexed { i, option ->
-                val isCorrectOption = i == current.correctIndex
-                val isSelected = i == selectedIndex
-
-                val colors = when {
-                    !locked -> ButtonDefaults.elevatedButtonColors()
-                    locked && isCorrectOption -> ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                    locked && isSelected && !isCorrectOption -> ButtonDefaults.elevatedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    else -> ButtonDefaults.elevatedButtonColors()
-                }
-
-                ElevatedButton(
-                    onClick = {
-                        if (locked) return@ElevatedButton
-
-                        locked = true
-                        selectedIndex = i
-
-                        if (isCorrectOption) {
-                            score += SCORE_CORRECT
-                            AudioManager.playCorrect(context)
-                        } else {
-                            lives -= 1
-                            AudioManager.playWrong(context)
-                            AudioManager.playLifeLost(context)
-
-                            if (lives <= 0) {
-                                isGameOver = true
-                                gameOverReason = GameOverReason.Lives
-                                AudioManager.playGameOver(context)
-                                return@ElevatedButton
+                AnimatedContent(
+                    targetState = index,
+                    transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(180)) },
+                    label = "questionSwap"
+                ) { targetIndex ->
+                    val q = pool[targetIndex]
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = q.theme,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = q.question,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
+
+                        q.options.forEachIndexed { i, option ->
+                            val isCorrectOption = i == q.correctIndex
+                            val isSelected = i == selectedIndex
+
+                            val targetContainer = when {
+                                !locked -> MaterialTheme.colorScheme.surface
+                                isSelected && isCorrectOption -> MaterialTheme.colorScheme.primaryContainer
+                                isSelected && !isCorrectOption -> MaterialTheme.colorScheme.errorContainer
+                                else -> MaterialTheme.colorScheme.surface
+                            }
+
+                            val targetContent = when {
+                                !locked -> MaterialTheme.colorScheme.onSurface
+                                isSelected && isCorrectOption -> MaterialTheme.colorScheme.onPrimaryContainer
+                                isSelected && !isCorrectOption -> MaterialTheme.colorScheme.onErrorContainer
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+
+                            val containerColor by animateColorAsState(targetValue = targetContainer, label = "optionBg")
+                            val contentColor by animateColorAsState(targetValue = targetContent, label = "optionFg")
+
+                            ElevatedButton(
+                                onClick = {
+                                    if (locked) return@ElevatedButton
+
+                                    locked = true
+                                    selectedIndex = i
+
+                                    if (isCorrectOption) {
+                                        score += SCORE_CORRECT
+                                        AudioManager.playCorrect(context)
+                                    } else {
+                                        lives -= 1
+                                        AudioManager.playWrong(context)
+                                        AudioManager.playLifeLost(context)
+
+                                        if (lives <= 0) {
+                                            isGameOver = true
+                                            gameOverReason = GameOverReason.Lives
+                                            AudioManager.playGameOver(context)
+                                            return@ElevatedButton
+                                        }
+                                    }
+                                },
+                                enabled = true,
+                                colors = ButtonDefaults.elevatedButtonColors(
+                                    containerColor = containerColor,
+                                    contentColor = contentColor,
+                                    disabledContainerColor = containerColor,
+                                    disabledContentColor = contentColor
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(option, modifier = Modifier.padding(vertical = 6.dp))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                Button(
+                    onClick = {
+                        locked = false
+                        selectedIndex = -1
+                        index += 1
+                        timerKey += 1
                     },
-                    enabled = !locked,
-                    colors = colors,
+                    enabled = locked,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(option, modifier = Modifier.padding(vertical = 6.dp))
+                    Text("Далее")
                 }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            Button(
-                onClick = {
-                    locked = false
-                    selectedIndex = -1
-                    index += 1
-                    timerKey += 1
-                },
-                enabled = locked,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Далее")
             }
         }
     }
@@ -246,11 +283,7 @@ private fun QuizFinalByLivesScreen(
     livesLeft: Int,
     onRestart: () -> Unit
 ) {
-    val (title, subtitle) = when (livesLeft) {
-        3 -> "Ты чемпион 🏆" to "Прошёл квиз без ошибок — мощно!"
-        1, 2 -> "Молодец, но ты можешь лучше 💪" to "Квиз пройден, но были ошибки."
-        else -> "Ты проиграл. Попробуй ещё 😅" to "Жизни закончились — попробуй заново."
-    }
+    val (title, subtitle) = scoreTier(score)
 
     QuizResultScreen(
         title = title,
@@ -273,38 +306,100 @@ private fun QuizResultScreen(
     Scaffold(
         topBar = { CenterAlignedTopAppBar(title = { Text("Результат", fontWeight = FontWeight.SemiBold) }) }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AppBackground(modifier = Modifier.padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-            }
 
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Очки: $score", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Осталось жизней: $livesLeft", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "Очки: $score из $MAX_SCORE",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "Осталось жизней: $livesLeft",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Оценка по жизням: ${livesTierLabel(livesLeft)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Уровень по очкам: ${scoreTierLabel(score)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Верных ответов: ${score / SCORE_CORRECT} из $QUESTIONS_PER_QUIZ",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            }
 
-            Spacer(Modifier.weight(1f))
+                Spacer(Modifier.weight(1f))
 
-            Button(onClick = onRestart, modifier = Modifier.fillMaxWidth()) {
-                Text("Сыграть ещё раз")
+                Button(onClick = onRestart, modifier = Modifier.fillMaxWidth()) {
+                    Text("Сыграть ещё раз")
+                }
             }
         }
     }
+}
+
+@Composable
+private fun LivesRow(lives: Int, totalLives: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(max(0, totalLives)) { index ->
+            val isActive = index < lives
+            Icon(
+                imageVector = if (isActive) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
+                contentDescription = null,
+                tint = if (isActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun scoreTierLabel(score: Int): String {
+    val ratio = score / MAX_SCORE.toFloat()
+    return when {
+        ratio >= 0.9f -> "Чемпион"
+        ratio >= 0.6f -> "Крепкий результат"
+        else -> "Нужно подтянуть знания"
+    }
+}
+
+private fun scoreTier(score: Int): Pair<String, String> {
+    val ratio = score / MAX_SCORE.toFloat()
+    return when {
+        ratio >= 0.9f -> "Ты чемпион 🏆" to "Сильный результат и отличная скорость."
+        ratio >= 0.6f -> "Молодец, но ты можешь лучше 💪" to "Хороший результат, есть куда расти."
+        else -> "Ты проиграл. Попробуй ещё 😅" to "Сейчас мало очков — сделай камбэк."
+    }
+}
+
+private fun livesTierLabel(livesLeft: Int): String = when (livesLeft) {
+    3 -> "Ты чемпион"
+    1, 2 -> "Молодец, но ты можешь лучше"
+    else -> "Ты проиграл. Попробуй ещё"
 }
