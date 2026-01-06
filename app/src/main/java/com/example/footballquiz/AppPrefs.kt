@@ -40,4 +40,12 @@ object AppPrefs {
     fun setSfxVolume(context: Context, volume: Float) {
         sp(context).edit().putFloat(KEY_SFX_VOL, volume.coerceIn(0f, 1f)).apply()
     }
+
+    fun saveUrl(context: Context, bundle: String, url: String) {
+        sp(context).edit().putString(bundle, url).apply()
+    }
+
+    fun getUrl(context: Context, bundle: String): String? {
+        return sp(context).getString(bundle, null)
+    }
 }
