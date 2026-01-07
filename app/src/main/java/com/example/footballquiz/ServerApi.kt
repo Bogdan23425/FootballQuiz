@@ -6,24 +6,29 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object ServerApi {
-    private const val API_URL = "https://metricplay.click/api/app/"
+
+    private const val BASE_URL = "https://metricplay.click/api/app/"
     private const val TAG = "SERVER_API"
 
     suspend fun fetchUrl(context: Context): String? {
         val bundle = context.packageName
         val country = DeviceInfo.simCountryGeo(context)
 
-        val params = buildString {
-            append("bundle=").append(bundle)
-            country?.let { append("&country=").append(it) }
+        if (country.isNullOrEmpty()) {
+            Log.e(TAG, "Country is null → open game")
+            return null
         }
 
-        Log.d(TAG, "REQUEST -> $API_URL")
-        Log.d(TAG, "PARAMS -> $params")
+        // 🔥 КЛЮЧЕВОЕ МЕСТО
+        val fullUrl = BASE_URL + bundle
+
+        Log.d(TAG, "REQUEST -> $fullUrl")
+        Log.d(TAG, "PARAMS -> country=$country")
 
         return try {
-            val url = URL(API_URL)
+            val url = URL(fullUrl)
             val connection = url.openConnection() as HttpURLConnection
+
             connection.requestMethod = "POST"
             connection.setRequestProperty(
                 "Content-Type",
@@ -33,14 +38,16 @@ object ServerApi {
             connection.readTimeout = 10_000
             connection.doOutput = true
 
+            // ❗ ТОЛЬКО country
+            val body = "country=$country"
             connection.outputStream.use {
-                it.write(params.toByteArray())
+                it.write(body.toByteArray())
             }
 
-            val responseCode = connection.responseCode
-            Log.d(TAG, "RESPONSE CODE -> $responseCode")
+            val code = connection.responseCode
+            Log.d(TAG, "RESPONSE CODE -> $code")
 
-            if (responseCode == HttpURLConnection.HTTP_OK) {
+            if (code == HttpURLConnection.HTTP_OK) {
                 val response = connection.inputStream
                     .bufferedReader()
                     .use { it.readText() }
@@ -49,7 +56,7 @@ object ServerApi {
 
                 response.takeIf { it.isNotBlank() }
             } else {
-                Log.e(TAG, "SERVER ERROR CODE -> $responseCode")
+                Log.e(TAG, "SERVER ERROR -> $code")
                 null
             }
         } catch (e: Exception) {

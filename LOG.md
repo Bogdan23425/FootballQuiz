@@ -49,3 +49,8 @@
 Запрос: изменить bundle приложения с com.example.footballquiz на test.sport.quiz.test
 Сделано: изменен applicationId в app/build.gradle.kts на test.sport.quiz.test, обновлен тест ExampleInstrumentedTest.kt с новым ожидаемым значением bundle, код использует context.packageName и packageName (автоматически получают новое значение)
 Статус: ✅
+
+2026-01-07 — упрощение загрузочного экрана до минималистичного варианта
+Запрос: сделать SplashScreen максимально минималистичным - убрать весь текст и надписи, оставить только CircularProgressIndicator по центру экрана
+Сделано: упрощен SplashScreen.kt - убран весь текст, убраны анимации и декоративные элементы, оставлен только CircularProgressIndicator по центру экрана, фон использует MaterialTheme.colorScheme.background (адаптируется под светлую/тёмную тему), цвет спиннера берется из темы автоматически
+Статус: ✅
