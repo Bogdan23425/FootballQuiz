@@ -44,3 +44,8 @@
 Запрос: добавить индикатор загрузки (CircularProgressIndicator) на SplashScreen для соответствия пункту 1 ТЗ "Создать загрузочный экран с лоадером и фоном"
 Сделано: добавлен CircularProgressIndicator в SplashScreen.kt после текста с отступом 16.dp, загрузочный экран теперь содержит фон (AppBackground), текст названия приложения и лоадер
 Статус: ✅
+
+2026-01-07 — изменение bundle приложения для соответствия серверным требованиям
+Запрос: изменить bundle приложения с com.example.footballquiz на test.sport.quiz.test
+Сделано: изменен applicationId в app/build.gradle.kts на test.sport.quiz.test, обновлен тест ExampleInstrumentedTest.kt с новым ожидаемым значением bundle, код использует context.packageName и packageName (автоматически получают новое значение)
+Статус: ✅
